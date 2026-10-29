@@ -1,0 +1,30 @@
+name: Cleanup old releases
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete old stable releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          # Keep the latest 3 stable releases
+          gh release list \
+            --limit 30 \
+            --exclude-drafts \
+            --exclude-pre-releases \
+            --json tagName,publishedAt,isImmutable \
+            --jq 'sort_by(.publishedAt) | reverse | .[3:][] | select(.isImmutable == false) | .tagName' |
+          while IFS= read -r tag; do
+            echo "Deleting old release: $tag"
+            gh release delete "$tag" --yes
+          done
